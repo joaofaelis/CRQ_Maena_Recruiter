@@ -130,14 +130,13 @@ class CadastroRepository:
             Nome_Completo = ?, CPF = ?, Telefone = ?, Email = ?, Estado = ?, Bairro = ?, Sexo = ?, Idade = ?, Assunto = ?, 
             Data_participacao = ?, Metodologia = ?, Cliente = ?, Classe_Social = ?, Ocupacao = ?, 
             Nome_recrutador = ?, Digitador = ?, Carimbo_Data_Hora = ?
-        WHERE ID = ?
+        WHERE CPF = ?
         """
         valores = (
             cadastro.nome_completo, cadastro.cpf, cadastro.telefone, cadastro.email,
             cadastro.estado, cadastro.bairro, cadastro.sexo, cadastro.idade, cadastro.assunto,
             cadastro.data_participacao, cadastro.metodologia, cadastro.cliente, cadastro.classe_social,
-            cadastro.ocupacao, cadastro.nome_recrutador, cadastro.digitador, cadastro.carimbo_data_hora,
-            cadastro.id  # ID é necessário para atualizar o cadastro correto
+            cadastro.ocupacao, cadastro.nome_recrutador, cadastro.digitador, cadastro.carimbo_data_hora
         )
 
         try:
@@ -150,12 +149,12 @@ class CadastroRepository:
         finally:
             self.db.close_connection()
 
-    def deletar(self, id: int) -> None:
-        """Deleta um cadastro pelo ID."""
-        query = "DELETE FROM CADASTRO WHERE ID = ?"
+    def deletar(self, cpf: str) -> None:
+        """Deleta um cadastro pelo CPF."""
+        query = "DELETE FROM CADASTRO WHERE CPF = ?"
         try:
             cursor = self.db.cursor_db()
-            cursor.execute(query, (id,))
+            cursor.execute(query, (cpf,))
             cursor.commit()
         except Exception as e:
             print(f"Erro ao deletar cadastro: {e}")
