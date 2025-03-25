@@ -1,5 +1,5 @@
 from src.infrastructure.SQL.main import InfrastructureSQL
-from src.domain.entities.cadastro import Cadastro
+from src.domain.entities.cadastro import Cadastro, AtualizarCadastro
 from typing import List, Optional
 
 class CadastroRepository:
@@ -123,20 +123,20 @@ class CadastroRepository:
         finally:
             self.db.close_connection()
 
-    def atualizar(self, cadastro: Cadastro) -> None:
+    def atualizar(self, cpf: str, cadastro: AtualizarCadastro) -> None:
         """Atualiza um cadastro existente."""
         query = """
         UPDATE CADASTRO SET
-            Nome_Completo = ?, CPF = ?, Telefone = ?, Email = ?, Estado = ?, Bairro = ?, Sexo = ?, Idade = ?, Assunto = ?, 
+            Nome_Completo = ?, Telefone = ?, Email = ?, Estado = ?, Bairro = ?, Sexo = ?, Idade = ?, Assunto = ?, 
             Data_participacao = ?, Metodologia = ?, Cliente = ?, Classe_Social = ?, Ocupacao = ?, 
-            Nome_recrutador = ?, Digitador = ?, Carimbo_Data_Hora = ?
+            Nome_recrutador = ?, Digitador = ?
         WHERE CPF = ?
         """
         valores = (
-            cadastro.nome_completo, cadastro.cpf, cadastro.telefone, cadastro.email,
+            cadastro.nome_completo, cadastro.telefone, cadastro.email,
             cadastro.estado, cadastro.bairro, cadastro.sexo, cadastro.idade, cadastro.assunto,
             cadastro.data_participacao, cadastro.metodologia, cadastro.cliente, cadastro.classe_social,
-            cadastro.ocupacao, cadastro.nome_recrutador, cadastro.digitador, cadastro.carimbo_data_hora
+            cadastro.ocupacao, cadastro.nome_recrutador, cadastro.digitador, cpf
         )
 
         try:
@@ -150,10 +150,22 @@ class CadastroRepository:
             self.db.close_connection()
 
     def deletar(self, cpf: str) -> None:
-        """Deleta um cadastro pelo CPF."""
+        """Deleta um cadastro pelo CPF após verificar se ele existe."""
+        if not cpf:
+            raise ValueError("CPF do cadastro é necessário para deletar.")
+
+        # Verifica se o CPF existe no banco de dados
+        verifica_cpf_query = "SELECT COUNT(1) FROM CADASTRO WHERE CPF = ?"
+        cursor = self.db.cursor_db()
+        cursor.execute(verifica_cpf_query, (cpf,))
+        resultado = cursor.fetchone()
+
+        if resultado[0] == 0:
+            raise Exception("CPF não encontrado no banco de dados.")  # Levanta erro se não encontrar o CPF
+
+        # Se o CPF existir, realiza o DELETE
         query = "DELETE FROM CADASTRO WHERE CPF = ?"
         try:
-            cursor = self.db.cursor_db()
             cursor.execute(query, (cpf,))
             cursor.commit()
         except Exception as e:
