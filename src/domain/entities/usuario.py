@@ -1,21 +1,13 @@
 from pydantic import BaseModel, EmailStr
 
-# Entidade de Usuario
-class Usuario(BaseModel):
-    id: int | None = None  # Permitindo que o id seja opcional
+class UsuarioBase(BaseModel):
     nome: str
     email: EmailStr
-    senha: str | None = None  # Senha não será retornada nas respostas
+    tipo_usuario: str  # 'ADM' ou 'USUARIO'
 
-    class Config:
-        from_attributes = True  # Garantindo que o Pydantic v2 mapeie atributos do banco corretamente
+class UsuarioCreate(UsuarioBase):
+    senha: str  # Senha será convertida para hash antes de salvar
 
-# Modelo de Login
-class LoginData(BaseModel):
-    username: str
-    password: str
-
-# Modelo de Token
-class TokenData(BaseModel):
-    access_token: str
-    token_type: str
+class UsuarioLogin(BaseModel):
+    email: EmailStr
+    senha: str

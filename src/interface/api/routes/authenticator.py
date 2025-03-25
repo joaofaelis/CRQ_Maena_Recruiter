@@ -1,38 +1,38 @@
-from fastapi import APIRouter, HTTPException
-from src.service.authentication.authentication_users import AuthService
-from src.domain.entities.usuario import LoginData, TokenData, Usuario
+from fastapi import APIRouter, HTTPException, Depends
 from src.repository.usuario_repository import UsuarioRepository
-from passlib.context import CryptContext
+from src.util.security.auth import criar_token_jwt, verificar_senha
+from src.domain.entities.usuario import UsuarioCreate, UsuarioLogin
 
-# Inicializando o repositório e o serviço de autenticação
+router = APIRouter()
+
+# Instanciando o repositório
 usuario_repository = UsuarioRepository()
-auth_service = AuthService(repository=usuario_repository)
 
-# Contexto de hash de senhas
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+@router.post("/registro/")
+def registrar_usuario(usuario: UsuarioCreate):
+    # Verifica se o usuário já existe no banco de dados
+    usuario_existente = usuario_repository.buscar_usuario_por_email(usuario.email)
+    if usuario_existente:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
 
-auth_router = APIRouter()
+    # Cria o usuário no banco de dados
+    return usuario_repository.criar_usuario(usuario.nome, usuario.email, usuario.senha, usuario.tipo_usuario)
 
-# Rota para login de usuários
-@auth_router.post("/login", response_model=TokenData)
-async def login(data: LoginData):
-    """Realiza a autenticação e retorna um token."""
-    # Chama o serviço de autenticação
-    token = auth_service.autenticar_usuario(data.username, data.password)
+@router.post("/login/")
+def login(usuario: UsuarioLogin):
+    # Busca o usuário no banco de dados
+    usuario_db = usuario_repository.buscar_usuario_por_email(usuario.email)
+    if not usuario_db:
+        raise HTTPException(status_code=400, detail="Email ou senha incorretos")
 
-    if not token:
-        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    # Desempacota os valores do usuário retornado do banco
+    id, nome, email, senha_hash, tipo_usuario = usuario_db
 
-    return {"access_token": token, "token_type": "bearer"}
+    # Verifica se a senha fornecida bate com a senha armazenada
+    if not verificar_senha(usuario.senha, senha_hash):
+        raise HTTPException(status_code=400, detail="Email ou senha incorretos")
 
-# Rota para registro de novos usuários
-@auth_router.post("/register", response_model=TokenData)
-async def register(usuario: Usuario):
-    """Realiza o registro de um novo usuário e retorna o token."""
-    # Chama o serviço de autenticação para registrar o usuário
-    token = auth_service.registrar_usuario(usuario.nome, usuario.email, usuario.senha)
-
-    if not token:
-        raise HTTPException(status_code=400, detail="Falha ao registrar usuário")
+    # Gera o token JWT
+    token = criar_token_jwt({"sub": email, "tipo_usuario": tipo_usuario})
 
     return {"access_token": token, "token_type": "bearer"}

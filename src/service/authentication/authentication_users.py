@@ -3,7 +3,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from typing import Optional
 from src.repository.usuario_repository import UsuarioRepository
-from src.domain.entities.usuario import Usuario
+from src.domain.entities.usuario import UsuarioBase, UsuarioCreate, UsuarioLogin
 
 # Configuração do JWT
 SECRET_KEY = "seu_segredo_super_secreto"  # Substituir por uma chave segura
@@ -26,53 +26,53 @@ class AuthService:
         """Gera o hash da senha para armazenamento seguro"""
         return pwd_context.hash(senha)
 
-    def gerar_token(self, usuario: Usuario) -> str:
+    def gerar_token(self, usuario: UsuarioBase) -> str:
         """Gera o token JWT para o usuário"""
         expiracao = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         payload = {"sub": usuario.email, "exp": expiracao}
         return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-    def autenticar_usuario(self, email: str, senha: str) -> Optional[str]:
+    def autenticar_usuario(self, dados: UsuarioLogin) -> Optional[str]:
         """Autentica o usuário e retorna o token se válido"""
-        usuario = self.repository.buscar_por_email(email)
+        usuario = self.repository.buscar_usuario_por_email(dados.email)
         if not usuario:
-            print(f"Usuário não encontrado para o email: {email}")  # Debugging
+            print(f"Usuário não encontrado para o email: {dados.email}")  # Debugging
             return None
-        if not self.verificar_senha(senha, usuario.senha):
-            print(f"Senha inválida para o usuário: {email}")  # Debugging
+        if not self.verificar_senha(dados.senha, usuario['senha']):
+            print(f"Senha inválida para o usuário: {dados.email}")  # Debugging
             return None
         return self.gerar_token(usuario)
 
-    def verificar_token(self, token: str) -> Usuario:
+    def verificar_token(self, token: str) -> UsuarioBase:
         """Verifica a validade do token JWT e retorna o usuário"""
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             usuario_email: str = payload.get("sub")
             if usuario_email is None:
                 raise JWTError("Token inválido")
-            usuario = self.repository.buscar_por_email(usuario_email)
+            usuario = self.repository.buscar_usuario_por_email(usuario_email)
             if usuario is None:
                 raise JWTError("Usuário não encontrado")
             return usuario
         except JWTError:
             raise JWTError("Token inválido ou expirado")
 
-    def registrar_usuario(self, nome: str, email: str, senha: str) -> Optional[str]:
+    def registrar_usuario(self, dados: UsuarioCreate) -> Optional[str]:
         """Registra um novo usuário no banco de dados"""
         # Verifica se o email já está cadastrado
-        usuario_existente = self.repository.buscar_por_email(email)
+        usuario_existente = self.repository.buscar_usuario_por_email(dados.email)
         if usuario_existente:
-            print(f"Email {email} já cadastrado.")  # Debugging
+            print(f"Email {dados.email} já cadastrado.")  # Debugging
             return None
 
         # Gera o hash da senha
-        senha_hash = self.gerar_hash_senha(senha)
+        senha_hash = self.gerar_hash_senha(dados.senha)
 
         # Cria um novo objeto Usuario
-        novo_usuario = Usuario(nome=nome, email=email, senha=senha_hash)
+        novo_usuario = UsuarioCreate(nome=dados.nome, email=dados.email, tipo_usuario=dados.tipo_usuario, senha=senha_hash)
 
         # Salva o novo usuário no banco de dados
-        self.repository.salvar_usuario(novo_usuario, senha_hash)
+        self.repository.salvar_usuario(novo_usuario)
 
         # Retorna um token para o novo usuário
         return self.gerar_token(novo_usuario)
