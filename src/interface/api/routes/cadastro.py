@@ -10,12 +10,14 @@ cadastro_service = CadastroService()
 @cadastro_router.post("/", response_model=Cadastro)
 async def criar_cadastro(cadastro: Cadastro, usuario: dict = Depends(obter_usuario_atual)):
     """Cria um novo cadastro (Apenas usuários autenticados podem criar)."""
-    if usuario["tipo_usuario"] != "ADM":  # Verifica se o usuário tem permissões adequadas
+    if usuario["tipo_usuario"] not in {"ADM", "User"}:  # Verifica se o usuário tem permissões adequadas
         raise HTTPException(status_code=403, detail="Permissão negada")
     return cadastro_service.criar_cadastro(cadastro)
 
 @cadastro_router.get("/{cpf}", response_model=Cadastro)
 async def buscar_cadastro(cpf: str, usuario: dict = Depends(obter_usuario_atual)):
+    if usuario["tipo_usuario"] not in {"ADM", "User"}:
+        raise HTTPException(status_code=403, detail="Permissão negada")
     """Busca cadastro pelo CPF (Apenas usuários autenticados podem buscar)."""
     try:
         cadastro = cadastro_service.buscar_por_cpf(cpf)
@@ -30,12 +32,14 @@ async def buscar_cadastro(cpf: str, usuario: dict = Depends(obter_usuario_atual)
 @cadastro_router.get("/", response_model=List[Cadastro])
 async def listar_todos_cadastros(usuario: dict = Depends(obter_usuario_atual)):
     """Lista todos os cadastros (Apenas usuários autenticados podem listar)."""
-    if usuario["tipo_usuario"] != "ADM":  # Verifica se o usuário é ADMIN para listar todos os cadastros
-        raise HTTPException(status_code=403, detail="Acesso negado. Usuário não é ADMIN.")
+    if usuario["tipo_usuario"] not in {"ADM", "User"}:
+        raise HTTPException(status_code=403, detail="Permissão negada")
     return cadastro_service.listar_todos_cadastros()
 
 @cadastro_router.put("/{cpf}", response_model=AtualizarCadastro)
 async def atualizar_cadastro(cpf: str, cadastro: AtualizarCadastro, usuario: dict = Depends(obter_usuario_atual)):
+    if usuario["tipo_usuario"] not in {"ADM", "User"}:
+        raise HTTPException(status_code=403, detail="Permissão negada")
     """Atualiza um cadastro existente (Apenas usuários autenticados podem atualizar)."""
     return cadastro_service.atualizar_cadastro(cpf, cadastro)
 
